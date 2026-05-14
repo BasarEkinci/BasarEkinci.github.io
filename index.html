@@ -275,13 +275,27 @@
   .panel-body::-webkit-scrollbar { width: 6px; }
   .panel-body::-webkit-scrollbar-thumb { background: var(--green-darker); }
   .panel-body .panel-title,
+  .panel-body .panel-rule,
   .panel-body #panel-content {
-    transition: opacity 0.18s ease, transform 0.18s ease;
+    transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
-  .panel-body.swapping .panel-title,
-  .panel-body.swapping #panel-content {
+  .panel-body .panel-rule { transition-delay: 0.05s; }
+  .panel-body #panel-content { transition-delay: 0.1s; }
+
+  .panel-body.swap-out .panel-title,
+  .panel-body.swap-out .panel-rule,
+  .panel-body.swap-out #panel-content {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateY(-18px);
+    transition-duration: 0.25s;
+    transition-delay: 0s;
+  }
+  .panel-body.swap-in .panel-title,
+  .panel-body.swap-in .panel-rule,
+  .panel-body.swap-in #panel-content {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: none;
   }
 
   .panel-title {
@@ -1010,15 +1024,23 @@ function openSection(key) {
   };
 
   if (wasOpen) {
-    // fade out current, swap, fade in
-    body.classList.add('swapping');
+    // exit up, enter from below
+    body.classList.add('swap-out');
     setTimeout(() => {
       apply();
-      // next frame, remove swapping to fade back in
-      requestAnimationFrame(() => requestAnimationFrame(() => body.classList.remove('swapping')));
-    }, 180);
+      body.classList.remove('swap-out');
+      body.classList.add('swap-in');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        body.classList.remove('swap-in');
+      }));
+    }, 260);
   } else {
+    // first open: enter from below too
     apply();
+    body.classList.add('swap-in');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      body.classList.remove('swap-in');
+    }));
   }
 }
 function closePanel() {
