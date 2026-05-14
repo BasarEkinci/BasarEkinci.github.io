@@ -151,7 +151,7 @@
     transition: padding-right 0.34s cubic-bezier(0.4, 0, 0.2, 1);
   }
   body.panel-active .nav-wrap {
-    padding-right: calc(min(720px, 50vw) + 24px);
+    padding-right: calc(50vw + 24px);
   }
   @media (max-width: 760px) {
     body.panel-active .nav-wrap { padding-right: 24px; }
@@ -234,7 +234,7 @@
   .panel {
     position: fixed;
     top: 0; right: 0; bottom: 0;
-    width: min(720px, 50vw);
+    width: 50vw;
     background: var(--bg);
     border-left: 1px solid var(--green-darker);
     z-index: 900;
