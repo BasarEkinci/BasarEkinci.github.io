@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ekinci@portfolio:~$</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #050807;
+    --bg-2: #0a0f0d;
+    --green: #33ff66;
+    --green-dim: #1f9c3d;
+    --green-darker: #0e4a1c;
+    --green-glow: rgba(51, 255, 102, 0.55);
+    --amber: #ffb84d;
+    --red: #ff5555;
+    --gray: #6a8a76;
+    --mono: "JetBrains Mono", "Fira Code", "IBM Plex Mono", ui-monospace, monospace;
+    --crt: "VT323", "JetBrains Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-x: hidden;
+    text-shadow: 0 0 1px var(--green-glow);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* subtle CRT scanlines + vignette */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.00) 0px,
+      rgba(255,255,255,0.00) 2px,
+      rgba(0,0,0,0.12) 3px,
+      rgba(0,0,0,0.12) 3px
+    );
+    mix-blend-mode: multiply;
+    z-index: 9000;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+    z-index: 9001;
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    97% { opacity: 1; }
+    97.5% { opacity: 0.92; }
+    98% { opacity: 1; }
+  }
+  .crt-flicker { animation: flicker 6s infinite; }
+
+  /* ============ BOOT ============ */
+  #boot {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 1000;
+    padding: 32px clamp(16px, 4vw, 64px);
+    overflow: hidden;
+  }
+  #boot .head {
+    color: var(--gray);
+    font-size: 13px;
+    margin-bottom: 18px;
+    display: flex; justify-content: space-between;
+    border-bottom: 1px dashed var(--green-darker);
+    padding-bottom: 8px;
+  }
+  #boot-log {
+    font-size: 14px;
+    white-space: pre;
+    color: var(--green-dim);
+  }
+  #boot-log .ok   { color: var(--green); }
+  #boot-log .warn { color: var(--amber); }
+  #boot-log .err  { color: var(--red); }
+  #boot-log .dim  { color: var(--gray); }
+
+  #boot-loader { margin-top: 28px; }
+  #boot-loader .label { color: var(--gray); margin-bottom: 6px; font-size: 13px; }
+  #boot-bar {
+    color: var(--green);
+    font-family: var(--crt);
+    font-size: 26px;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  #boot-bar .pct { margin-left: 14px; font-family: var(--mono); font-size: 16px; }
+
+  .cursor {
+    display: inline-block;
+    width: 0.55em; height: 1em;
+    background: var(--green);
+    vertical-align: -2px;
+    margin-left: 2px;
+    animation: blink 1s steps(2, end) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #boot.gone { opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
+
+  /* ============ MAIN ============ */
+  main {
+    opacity: 0;
+    transition: opacity 0.6s ease 0.1s;
+    min-height: 100vh;
+    position: relative;
+  }
+  main.show { opacity: 1; }
+
+  /* wordmark top-left */
+  .wordmark {
+    position: fixed;
+    top: clamp(20px, 3vw, 36px);
+    left: clamp(20px, 3vw, 40px);
+    color: var(--green);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.15;
+    letter-spacing: 1px;
+    z-index: 50;
+    text-shadow: 0 0 6px var(--green-glow);
+    user-select: none;
+  }
+  .wordmark .l1 { display: block; }
+  .wordmark .l2 { display: block; color: var(--green-dim); font-weight: 500; font-size: 11px; letter-spacing: 2px; margin-top: 2px; }
+
+  /* centered nav */
+  .nav-wrap {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 80px 24px;
+  }
+  .nav-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: clamp(36px, 6vw, 80px) clamp(40px, 7vw, 96px);
+  }
+
+  .nav-card {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--green);
+    font-family: var(--mono);
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    text-align: center;
+    padding: 4px;
+    transition: transform 0.18s ease;
+  }
+  .nav-card .icon-box {
+    width: 64px; height: 64px;
+    display: grid; place-items: center;
+    color: var(--green-dim);
+    transition: color 0.18s ease, filter 0.18s ease, transform 0.18s ease;
+  }
+  .nav-card .icon-box svg {
+    width: 100%; height: 100%;
+    stroke: currentColor; fill: none; stroke-width: 1.4;
+    stroke-linecap: square; stroke-linejoin: miter;
+  }
+  .nav-card .label {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--green-dim);
+    transition: color 0.18s ease, text-shadow 0.18s ease;
+  }
+  .nav-card:hover .icon-box,
+  .nav-card:focus-visible .icon-box {
+    color: var(--green);
+    filter: drop-shadow(0 0 8px var(--green-glow));
+  }
+  .nav-card:hover .label,
+  .nav-card:focus-visible .label {
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green-glow);
+    text-decoration: underline;
+    text-underline-offset: 5px;
+  }
+  .nav-card:focus-visible { outline: none; }
+
+  /* ============ SIDE PANEL ============ */
+  .panel-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 800;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .panel-backdrop.open { opacity: 1; pointer-events: auto; }
+
+  .panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(720px, 92vw);
+    background: var(--bg);
+    border-left: 1px solid var(--green-darker);
+    z-index: 900;
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column;
+    box-shadow: -40px 0 60px rgba(0,0,0,0.6);
+  }
+  .panel.open { transform: translateX(0); }
+
+  .panel-close {
+    position: absolute;
+    top: clamp(20px, 3vw, 32px);
+    right: clamp(20px, 3vw, 32px);
+    background: transparent;
+    border: 0;
+    color: var(--green-dim);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 22px;
+    line-height: 1;
+    padding: 6px;
+    transition: color 0.15s ease, text-shadow 0.15s ease, transform 0.15s ease;
+    z-index: 2;
+  }
+  .panel-close:hover { color: var(--green); text-shadow: 0 0 8px var(--green-glow); transform: rotate(90deg); }
+
+  .panel-body {
+    padding: clamp(48px, 7vw, 88px) clamp(28px, 5vw, 64px) 48px;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-color: var(--green-dim) transparent;
+    scrollbar-width: thin;
+  }
+  .panel-body::-webkit-scrollbar { width: 6px; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--green-darker); }
+
+  .panel-title {
+    color: var(--green);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(28px, 4vw, 44px);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin: 0 0 14px 0;
+    text-shadow: 0 0 10px var(--green-glow);
+  }
+  .panel-rule {
+    height: 1px;
+    background: var(--green-darker);
+    margin-bottom: 28px;
+  }
+  .panel-prompt {
+    color: var(--green-dim);
+    font-size: 12px;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+  }
+  .panel-prompt .cmd { color: var(--green); }
+
+  .todo {
+    color: var(--gray);
+    border: 1px dashed var(--green-darker);
+    padding: 18px 16px;
+    background: rgba(51,255,102,0.02);
+    font-size: 14px;
+  }
+  .todo .tag { color: var(--amber); }
+
+  /* projects */
+  .projects-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .project {
+    border: 1px solid var(--green-darker);
+    padding: 14px 16px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: border-color 0.15s ease;
+  }
+  .project:hover { border-color: var(--green-dim); }
+  .project .pname {
+    color: var(--green);
+    font-weight: 700;
+    font-size: 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    letter-spacing: 0.5px;
+  }
+  .project .pname .idx { color: var(--gray); font-weight: 400; font-size: 11px; }
+  .project .pdesc {
+    color: var(--gray);
+    font-size: 12.5px;
+    border-left: 2px solid var(--green-darker);
+    padding-left: 10px;
+  }
+  .project .pdesc.placeholder-desc { font-style: italic; }
+  .project .details-toggle {
+    background: transparent;
+    border: 1px solid var(--green-darker);
+    color: var(--green-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    align-self: flex-start;
+    letter-spacing: 0.5px;
+    transition: all 0.15s ease;
+  }
+  .project .details-toggle:hover { color: var(--green); border-color: var(--green-dim); }
+  .project .phighlights {
+    display: none;
+    margin: 4px 0 4px 0;
+    padding: 10px 12px 10px 12px;
+    background: rgba(51,255,102,0.025);
+    border: 1px dashed var(--green-darker);
+    list-style: none;
+    color: var(--gray);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .project.expanded .phighlights { display: block; }
+  .project .phighlights li {
+    padding-left: 14px;
+    position: relative;
+  }
+  .project .phighlights li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--green-dim);
+  }
+  .project .phighlights li + li { margin-top: 4px; }
+  .project .links {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 2px;
+  }
+  .link-slot {
+    font-size: 11px;
+    color: var(--gray);
+    border: 1px solid var(--green-darker);
+    padding: 3px 8px;
+    text-decoration: none;
+    letter-spacing: 0.4px;
+    cursor: not-allowed;
+    opacity: 0.55;
+    transition: all 0.15s ease;
+  }
+  .link-slot.active {
+    color: var(--green);
+    border-color: var(--green-dim);
+    opacity: 1;
+    cursor: pointer;
+  }
+  .link-slot.active:hover {
+    background: rgba(51,255,102,0.08);
+    box-shadow: 0 0 8px rgba(51,255,102,0.2);
+  }
+
+  /* contact */
+  .contact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .contact-table td {
+    padding: 10px 8px;
+    border-bottom: 1px dashed var(--green-darker);
+    vertical-align: top;
+  }
+  .contact-table td:first-child {
+    color: var(--green-dim);
+    width: 130px;
+    white-space: nowrap;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+  .contact-table td:last-child { color: var(--gray); }
+  .contact-table td a {
+    color: var(--green);
+    text-decoration: none;
+    border-bottom: 1px solid var(--green-darker);
+  }
+  .contact-table td a:hover { border-bottom-color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
+  .placeholder { color: var(--gray); font-style: italic; }
+
+  /* experience */
+  .xp-list { display: flex; flex-direction: column; gap: 14px; }
+  .xp {
+    border: 1px solid var(--green-darker);
+    padding: 16px 18px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    transition: border-color 0.15s ease;
+  }
+  .xp:hover { border-color: var(--green-dim); }
+  .xp .xp-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .xp .xp-title {
+    color: var(--green);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+  .xp .xp-title .role {
+    color: var(--green-dim);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+  .xp .xp-date {
+    color: var(--gray);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border: 1px solid var(--green-darker);
+    padding: 2px 8px;
+  }
+  .xp .xp-date.current { color: var(--green); border-color: var(--green-dim); }
+  .xp .xp-date.current::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: 1px;
+    box-shadow: 0 0 6px var(--green-glow);
+    animation: blink 1.6s steps(2, end) infinite;
+  }
+  .xp .xp-body {
+    color: var(--gray);
+    font-size: 12.5px;
+    border-left: 2px solid var(--green-darker);
+    padding-left: 12px;
+    line-height: 1.65;
+  }
+
+  /* CV download */
+  .cv-row {
+    display: flex; justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+  .cv-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    text-decoration: none;
+    color: var(--green);
+    border: 1px solid var(--green-dim);
+    padding: 8px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: rgba(51,255,102,0.03);
+    transition: all 0.15s ease;
+  }
+  .cv-btn:hover {
+    border-color: var(--green);
+    background: rgba(51,255,102,0.1);
+    box-shadow: 0 0 14px rgba(51,255,102,0.25);
+    text-shadow: 0 0 6px var(--green-glow);
+  }
+  .cv-btn .arr { color: var(--green-dim); transition: color 0.15s ease; }
+  .cv-btn:hover .arr { color: var(--green); }
+
+  /* about */
+  .bio {
+    color: var(--gray);
+    font-size: 13.5px;
+    line-height: 1.7;
+  }
+  .bio p { margin: 0 0 14px 0; }
+  .bio p:last-child { margin-bottom: 0; }
+  .bio .accent { color: var(--green-dim); }
+
+  .skills-block {
+    margin-top: 28px;
+    border: 1px solid var(--green-darker);
+    padding: 16px 18px 14px;
+  }
+  .skills-head {
+    color: var(--green);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px dashed var(--green-darker);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .skills-head .count { color: var(--gray); font-weight: 400; }
+  .skills-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px 16px;
+    font-size: 12.5px;
+  }
+  .skill-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(14, 74, 28, 0.4);
+  }
+  .skill-row:last-child { border-bottom: 0; }
+  .skill-row .k {
+    color: var(--green-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+  .skill-row .v {
+    color: var(--gray);
+    line-height: 1.6;
+  }
+  .skill-row .v .tag {
+    display: inline-block;
+    color: var(--green);
+    background: rgba(51,255,102,0.04);
+    border: 1px solid var(--green-darker);
+    padding: 2px 7px;
+    margin: 2px 4px 2px 0;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    transition: all 0.15s ease;
+  }
+  .skill-row .v .tag:hover {
+    border-color: var(--green-dim);
+    text-shadow: 0 0 6px var(--green-glow);
+  }
+
+  @media (max-width: 520px) {
+    .nav-grid { gap: 28px 36px; }
+    .nav-card .icon-box { width: 52px; height: 52px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ BOOT ============ -->
+<div id="boot" class="crt-flicker">
+  <div class="head">
+    <span>portfolio.kernel v0.4.2 (ekinci-build) #1 SMP</span>
+    <span id="boot-clock">--:--:--</span>
+  </div>
+  <pre id="boot-log"></pre>
+  <div id="boot-loader">
+    <div class="label">loading user.profile</div>
+    <div id="boot-bar">
+      [<span id="bar-fill"></span><span id="bar-empty">░░░░░░░░░░░░░░░░░░░░░░░░░░░░</span>]
+      <span class="pct" id="bar-pct">0%</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MAIN ============ -->
+<main id="main">
+  <div class="wordmark">
+    <span class="l1">ISMAIL BASAR</span>
+    <span class="l2">EKINCI</span>
+  </div>
+
+  <div class="nav-wrap">
+    <nav class="nav-grid" aria-label="main navigation">
+
+      <button class="nav-card" data-section="about">
+        <div class="icon-box" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <rect x="8" y="8" width="48" height="48"/>
+            <polyline points="16,22 24,30 16,38"/>
+            <line x1="28" y1="38" x2="44" y2="38"/>
+          </svg>
+        </div>
+        <span class="label">About Me</span>
+      </button>
+
+      <button class="nav-card" data-section="projects">
+        <div class="icon-box" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <rect x="8" y="14" width="34" height="28"/>
+            <rect x="22" y="22" width="34" height="28"/>
+            <line x1="28" y1="32" x2="48" y2="32"/>
+            <line x1="28" y1="38" x2="42" y2="38"/>
+          </svg>
+        </div>
+        <span class="label">Projects</span>
+      </button>
+
+      <button class="nav-card" data-section="contact">
+        <div class="icon-box" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <rect x="8" y="16" width="48" height="32"/>
+            <polyline points="8,16 32,36 56,16"/>
+          </svg>
+        </div>
+        <span class="label">Contact</span>
+      </button>
+
+      <button class="nav-card" data-section="experience">
+        <div class="icon-box" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <line x1="14" y1="12" x2="14" y2="52"/>
+            <circle cx="14" cy="20" r="3"/>
+            <circle cx="14" cy="32" r="3"/>
+            <circle cx="14" cy="46" r="3"/>
+            <line x1="22" y1="20" x2="52" y2="20"/>
+            <line x1="22" y1="32" x2="44" y2="32"/>
+            <line x1="22" y1="46" x2="48" y2="46"/>
+          </svg>
+        </div>
+        <span class="label">Experience</span>
+      </button>
+
+    </nav>
+  </div>
+</main>
+
+<!-- ============ SIDE PANEL ============ -->
+<div class="panel-backdrop" id="backdrop"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-hidden="true">
+  <button class="panel-close" id="panel-close" aria-label="close">✕</button>
+  <div class="panel-body">
+    <h2 class="panel-title" id="panel-title">—</h2>
+    <div class="panel-rule"></div>
+    <div id="panel-content"></div>
+  </div>
+</aside>
+
+<script>
+/* =====================================================
+   BOOT ANIMATION
+===================================================== */
+const bootLines = [
+  { t: 80,  text: '[<span class="ok">OK</span>] mounting /portfolio ......................................' },
+  { t: 70,  text: '[<span class="ok">OK</span>] starting kernel module: render_core' },
+  { t: 80,  text: '[<span class="ok">OK</span>] starting kernel module: input_handler' },
+  { t: 90,  text: '[<span class="ok">OK</span>] loading fonts/jetbrains_mono.ttf ........................' },
+  { t: 70,  text: '[<span class="ok">OK</span>] loading fonts/vt323.ttf' },
+  { t: 110, text: '[<span class="warn">..</span>] establishing link to /dev/coffee ........................' },
+  { t: 70,  text: '[<span class="ok">OK</span>] reticulating splines' },
+  { t: 80,  text: '[<span class="ok">OK</span>] initializing developer.profile' },
+  { t: 90,  text: '[<span class="ok">OK</span>] mounting /usr/projects (6 entries)' },
+  { t: 70,  text: '[<span class="ok">OK</span>] starting services: about, projects, contact, experience' },
+  { t: 100, text: '[<span class="dim">..</span>] warming caches' },
+];
+
+const bootEl   = document.getElementById('boot');
+const logEl    = document.getElementById('boot-log');
+const clockEl  = document.getElementById('boot-clock');
+const fillEl   = document.getElementById('bar-fill');
+const emptyEl  = document.getElementById('bar-empty');
+const pctEl    = document.getElementById('bar-pct');
+const mainEl   = document.getElementById('main');
+
+const BAR_TOTAL = 28;
+function setBar(pct) {
+  const filled = Math.round((pct / 100) * BAR_TOTAL);
+  fillEl.textContent  = '█'.repeat(filled);
+  emptyEl.textContent = '░'.repeat(BAR_TOTAL - filled);
+  pctEl.textContent   = pct + '%';
+}
+function fmtClock(d) {
+  return String(d.getHours()).padStart(2,'0') + ':' +
+         String(d.getMinutes()).padStart(2,'0') + ':' +
+         String(d.getSeconds()).padStart(2,'0');
+}
+setInterval(() => clockEl.textContent = fmtClock(new Date()), 500);
+clockEl.textContent = fmtClock(new Date());
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function runBoot() {
+  setBar(0);
+  for (let i = 0; i < bootLines.length; i++) {
+    logEl.innerHTML += bootLines[i].text + '\n';
+    await sleep(bootLines[i].t);
+  }
+  logEl.innerHTML += '\n';
+  for (let p = 0; p <= 100; p++) {
+    setBar(p);
+    const d = p < 30 ? 18 : p < 60 ? 12 : p < 85 ? 22 : 14;
+    await sleep(d);
+  }
+  await sleep(180);
+  logEl.innerHTML += '[<span class="ok">OK</span>] ready.\n';
+  await sleep(420);
+  bootEl.classList.add('gone');
+  mainEl.classList.add('show');
+  setTimeout(() => { bootEl.remove(); }, 600);
+}
+
+/* =====================================================
+   SECTION CONTENT
+===================================================== */
+const sections = {
+  about: {
+    title: 'About Me',
+    cmd:   'cat about.md',
+    body:  buildAbout()
+  },
+  projects: {
+    title: 'Projects',
+    cmd:   'ls -la projects/',
+    body:  buildProjects()
+  },
+  contact: {
+    title: 'Contact',
+    cmd:   'cat contact.txt',
+    body: `
+      <table class="contact-table">
+        <tr><td>email</td>      <td><a href="mailto:basarekinci02@outlook.com">basarekinci02@outlook.com</a></td></tr>
+        <tr><td>github</td>     <td><a href="https://github.com/BasarEkinci" target="_blank" rel="noopener">github.com/BasarEkinci</a></td></tr>
+        <tr><td>linkedin</td>   <td><a href="https://www.linkedin.com/in/ismail-basar-ekinci-446674202/" target="_blank" rel="noopener">linkedin.com/in/ismail-basar-ekinci</a></td></tr>
+        <tr><td>itch.io</td>    <td><a href="https://basarekinci.itch.io" target="_blank" rel="noopener">basarekinci.itch.io</a></td></tr>
+        <tr><td>location</td>   <td>Istanbul / Beykoz</td></tr>
+      </table>
+    `
+  },
+  experience: {
+    title: 'Experience',
+    cmd:   'tail -f experience.log',
+    body: buildExperience()
+  }
+};
+
+function buildProjects() {
+  const projects = [
+    {
+      name: 'Stronghold Defender',
+      desc: '3D isometric rogue-lite that blends idle progression with tower defense mechanics, developed at Ludu Arts and published on Steam for PC.',
+      highlights: [
+        'Role: gameplay programmer at Ludu Arts \u2014 responsible for system architecture, AI, persistence, and performance.',
+        'Stack: Unity, C#, VContainer (DI), ScriptableObjects, JSON serialization.',
+        'Data-driven architecture where ScriptableObjects cleanly separate configuration from runtime logic, enabling scalable content expansion.',
+        'Gameplay systems decoupled through VContainer-based dependency injection and an event-driven communication model, with SOLID principles enforcing clear system boundaries.',
+        'Layered progression: meta-upgrade framework + skill tree, built for future content additions.',
+        'Predictable, low-overhead enemy AI driven by clear state transitions.',
+        'JSON-based persistence layer covering both meta and runtime state across sessions.',
+        'Performance tuned through object pooling, GC-sensitive code paths, static batching, and GPU instancing to maintain stable frame times under system-heavy scenarios.',
+        'Development leveraged structured AI-assisted workflows (Claude Code) to accelerate iteration while preserving architectural control.'
+      ],
+      links: { 'Steam': 'https://store.steampowered.com/app/4259030/Stronghold_Defender/' }
+    },
+    {
+      name: 'Climber Animals: Together (Mobile)',
+      desc: 'Co-op game originally built for PC, ported to mobile and prepared for App Store release at Ludu Arts.',
+      highlights: [
+        'Role: mobile port & monetization developer — owned SDK integration, monetization flow, and release-readiness.',
+        'Stack: Unity, C#, AppLovin (mediation), AppsFlyer, Firebase, Google AdMob, Unity Ads, Meta Ads, GameAnalytics.',
+        'Adapted a PC co-op title for mobile platforms, handling platform compatibility and performance tuning required for release.',
+        'Built a scalable monetization infrastructure combining in-app purchases with a rewarded-ads flow.',
+        'Integrated AppLovin mediation to optimize ad revenue across multiple networks.',
+        'Configured AppsFlyer, Firebase, AdMob, Unity Ads, and Meta Ads end-to-end.',
+        'Wired GameAnalytics into the event layer to track player behavior across the funnel.'
+      ],
+      links: { 'App Store': 'https://apps.apple.com/tr/app/climber-animals-together/id6761367697?l=tr' }
+    },
+    { name: 'Panic Crew',
+      desc: 'Co-op party game developed at Ludu Arts as part of a three-developer team, with a focus on multiplayer architecture and runtime stability.',
+      highlights: [
+        'Role: gameplay & network programmer — owned the multiplayer layer and contributed to gameplay system integration.',
+        'Stack: Unity, C#, Photon Fusion.',
+        'Built the multiplayer layer on Photon Fusion under a state-authority model, enforcing clear object ownership and consistent state replication across clients.',
+        'Structured gameplay logic around Fusion’s tick-based simulation to keep behavior deterministic and minimize desync risks.',
+        'Reduced bandwidth and latency overhead by tuning RPC usage and state update patterns.',
+        'Resolved race conditions and concurrency issues that affected synchronization.',
+        'Integrated new gameplay systems while preserving a clean separation between the network and core gameplay layers.'
+      ],
+      links: { 'Steam': 'https://store.steampowered.com/app/4109050/Panic_Crew/' }
+    },
+    { name: 'Memory-card Game',
+      desc: 'WebGL card-matching game with a strike bonus system that multiplies points on consecutive matches, and a progressive penalty that escalates on repeated mismatches.',
+      highlights: [
+        'Role: architecture and AI orchestration. Built to explore AI-driven development workflows — all architectural and technical decisions are mine, while implementation was carried out in coordination with AI agents.',
+        'Stack: Unity 6, C#, VContainer (DI), MessagePipe (event bus), UniTask, LitMotion.',
+        'Built on a Model-View-System pattern with strict layer separation — the pure C# logic layer carries no Unity dependencies and is validated by 72 unit tests.',
+        'Assembly definitions enforce dependency direction at compile time, preventing accidental coupling between layers.'
+      ],
+      links: { 'itch.io': 'https://basarekinci.itch.io/memory-card-game' }
+    },
+    { name: 'ECS Leaf Simulation',
+      desc: 'Leaf-blowing physics simulation built to explore Unity\u2019s Data-Oriented Technology Stack (DOTS). The player drives a tank-style vehicle through a field of leaves while a region-based wind force scatters and tumbles them based on mouse position.',
+      highlights: [
+        'Role: solo project \u2014 designed and implemented end-to-end as a hands-on study of ECS architecture and physics integration.',
+        'Stack: Unity 6 (URP), Entities 6.5, Entities Graphics, Unity Physics, Burst.',
+        'Force-only physics approach \u2014 systems write to PhysicsVelocity before the physics group, delegating integration to Unity Physics.',
+        'Hybrid MonoBehaviour-to-ECS input bridge for clean separation between authoring and runtime data.',
+        'Custom CompoundCollider baker that constructs colliders from child GameObjects via matrix decomposition.',
+        'Frame-distributed leaf spawning with deterministic per-leaf RNG to keep spikes off the main thread.',
+        'Performance tuned through collision filtering, reduced solver iterations, and auto-sleep configuration.'
+      ],
+      links: { 'GitHub': 'https://github.com/BasarEkinci/ecs-leaf-simulation' }
+    },
+    { name: 'Luggage Rush',
+      desc: 'Mobile game developed at Udo Games with Unity, where performance and rendering budgets shaped most technical decisions.',
+      highlights: [
+        'Role: gameplay programmer — contributed to data architecture, shaders, and cross-team integration.',
+        'Stack: Unity, C#, Shader Graph.',
+        'Designed modular scripting structures for in-game data management to improve maintainability and support scalable feature expansion.',
+        'Authored Shader Graph solutions tuned for mobile constraints, balancing visual quality against runtime cost.',
+        'Worked within tight memory and rendering budgets, building a practical foundation in performance-aware mobile development.',
+        'Collaborated closely with designers and artists to align implementation with creative direction.'
+      ],
+      links: { 'Web': 'https://www.linkedin.com/posts/ismail-basar-ekinci-446674202_herkese-merhaba-udo-gamesin-yaz-staj%C4%B1-ugcPost-7362433554007449601-oP41?utm_source=share&utm_medium=member_desktop&rcm=ACoAADO2PHYBDFgdjejVlnfBafMRBv6EBGZiBww' }
+    },
+  ];
+  const slotNames = ['App Store','Google Play','Steam','Web'];
+  const cards = projects.map((p, i) => {
+    const idx = String(i+1).padStart(2, '0');
+    const hasHighlights = Array.isArray(p.highlights) && p.highlights.length > 0;
+    const isPlaceholder = p.desc.startsWith('//');
+    const linksMap = p.links || {};
+    const activeLinks = Object.entries(linksMap);
+    const linkSlots = activeLinks
+      .map(([s, url]) => `<a class="link-slot active" href="${url}" target="_blank" rel="noopener">[ ${s} ]</a>`)
+      .join('');
+    const linksBlock = activeLinks.length
+      ? `<div class="links">${linkSlots}</div>`
+      : '';
+    const highlightsHtml = hasHighlights
+      ? `<ul class="phighlights">${p.highlights.map(h => `<li>${h}</li>`).join('')}</ul>`
+      : '';
+    const toggle = hasHighlights
+      ? `<button class="details-toggle" type="button" data-action="toggle">[ + details ]</button>`
+      : '';
+    return `
+      <div class="project" data-idx="${idx}">
+        <div class="pname"><span>${p.name}</span><span class="idx">#${idx}</span></div>
+        <div class="pdesc${isPlaceholder ? ' placeholder-desc' : ''}">${p.desc}</div>
+        ${toggle}
+        ${highlightsHtml}
+        ${linksBlock}
+      </div>
+    `;
+  }).join('');
+  return `<div class="projects-grid">${cards}</div>`;
+}
+
+function buildExperience() {
+  const items = [
+    {
+      company: 'Ludu Arts',
+      role: 'Game Developer',
+      date: 'Nov 2025 — Present',
+      current: true,
+      body: 'Working across multiple Unity titles spanning PC (Steam), mobile, and console. Shipped a full Steam project from scratch and ported a co-op multiplayer game to mobile with end-to-end SDK and monetization integration (AppLovin mediation, AppsFlyer, Firebase, AdMob, Unity Ads, Meta Ads, GameAnalytics, IAP). Built a 2–4 player local multiplayer system with split-screen, robust controller hot-swap, and dynamic join/leave handling. Day-to-day work covers Photon-based netcode, CPU/GPU/memory optimization, modular gameplay architecture, and AI-assisted workflows with Claude Code.'
+    },
+    {
+      company: 'UDO Games',
+      role: 'Game Developer Intern',
+      date: 'Jul 2025 — Aug 2025',
+      body: 'Contributed to a Unity mobile game alongside designers and 3D artists. Implemented UI management, level transitions, and in-game interaction systems, designed reusable data structures for in-game content, and authored custom shaders to improve rendering performance. Built editor tools and extensions to streamline team workflow, and managed asset, prefab, and scene optimization within Agile/Scrum cycles.'
+    },
+    {
+      company: 'Heetsoft Information Technology',
+      role: 'Software Engineer Intern',
+      date: 'Nov 2024 — Feb 2025',
+      body: 'Contributed to software and product development across ongoing projects, gaining hands-on exposure to the full software development lifecycle. Provided technical support and proposed improvements where iteration was needed.'
+    },
+    {
+      company: 'Codeo',
+      role: 'Gameplay Programmer / Tester Intern',
+      date: 'Aug 2024 — Sep 2024',
+      body: 'Implemented gameplay mechanics and participated in the QA process across multiple game projects. Identified bugs, reported reproduction steps, and fed feedback into the team to improve gameplay quality and stability.'
+    },
+    {
+      company: 'Logiscool',
+      role: 'Coding Trainer',
+      date: 'Sep 2023 — Jan 2024',
+      body: 'Taught algorithmic thinking and programming fundamentals to children using Scratch. Guided students through project-based learning and designed progressively challenging exercises to scaffold their growth.'
+    }
+  ];
+  const rows = items.map(x => `
+    <div class="xp">
+      <div class="xp-head">
+        <div class="xp-title">${x.company}<span class="role"> — ${x.role}</span></div>
+        <div class="xp-date${x.current ? ' current' : ''}">${x.date}</div>
+      </div>
+      <div class="xp-body">${x.body}</div>
+    </div>
+  `).join('');
+  return `
+    <div class="cv-row">
+      <a class="cv-btn" href="cv.pdf" target="_blank" rel="noopener" download>
+        <span class="arr">$</span> download cv.pdf <span class="arr">↓</span>
+      </a>
+    </div>
+    <div class="xp-list">${rows}</div>
+  `;
+}
+
+function buildAbout() {
+  const skills = [
+    { k: 'Languages',     v: ['C#'] },
+    { k: 'Engine',        v: ['Unity', 'URP', 'Shader Graph'] },
+    { k: 'DOTS / ECS',    v: ['Entities', 'Burst', 'Jobs', 'Unity Physics', 'Entities Graphics'] },
+    { k: 'Networking',    v: ['Photon Fusion', 'Photon PUN', 'Mirror'] },
+    { k: 'Architecture',  v: ['VContainer (DI)', 'MessagePipe', 'GenericEventBus', 'ScriptableObject-driven', 'SOLID'] },
+    { k: 'Rendering',     v: ['GPU Instancing', 'static / dynamic batching', 'draw call optimization', 'custom shaders'] },
+    { k: 'Async / Tools', v: ['UniTask', 'LitMotion', 'DOTween'] },
+    { k: 'Persistence',   v: ['JSON save systems'] },
+    { k: 'Mobile / Ads',  v: ['AppLovin', 'AppsFlyer', 'Firebase', 'AdMob', 'Unity Ads', 'Meta Ads', 'GameAnalytics', 'IAP'] },
+    { k: 'Platforms',     v: ['PC (Steam)', 'iOS', 'Android', 'Console'] },
+    { k: 'Workflow',      v: ['Git', 'Agile / Scrum', 'AI-assisted dev (Claude Code)'] },
+  ];
+  const rows = skills.map(s => `
+    <div class="skill-row">
+      <div class="k">${s.k}</div>
+      <div class="v">${s.v.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+    </div>
+  `).join('');
+  const total = skills.reduce((n, s) => n + s.v.length, 0);
+  return `
+    <div class="bio">
+      <p>My journey started at a very young age with a PS1 controller in my hands. Even back then, I wasn’t just playing games — I was constantly wondering what was happening behind the scenes. What was actually on those CDs that brought these worlds to life? That early curiosity never faded; it only grew stronger and eventually shaped my entire career path. I chose to study software engineering specifically to turn that childhood fascination into real skills. Over time, game development became more than something I love — it became what I do.</p>
+      <p>Today I work as a game developer, building games across PC, mobile, and console. I care about clean architecture, scalable systems, and performance-aware development — the kind of engineering that lets gameplay ideas grow without collapsing under their own weight.</p>
+    </div>
+    <div class="skills-block">
+      <div class="skills-head">
+        <span>// technical_skills</span>
+        <span class="count">${total} tags · ${skills.length} groups</span>
+      </div>
+      <div class="skills-grid">${rows}</div>
+    </div>
+  `;
+}
+
+/* =====================================================
+   PANEL CONTROL
+===================================================== */
+const panel    = document.getElementById('panel');
+const backdrop = document.getElementById('backdrop');
+const titleEl  = document.getElementById('panel-title');
+const contentEl= document.getElementById('panel-content');
+const closeBtn = document.getElementById('panel-close');
+
+function openSection(key) {
+  const s = sections[key];
+  if (!s) return;
+  titleEl.textContent = s.title;
+  contentEl.innerHTML = `
+    <div class="panel-prompt">user@portfolio:~$ <span class="cmd">${s.cmd}</span></div>
+    ${s.body}
+  `;
+  panel.querySelector('.panel-body').scrollTop = 0;
+  panel.classList.add('open');
+  backdrop.classList.add('open');
+  panel.setAttribute('aria-hidden','false');
+}
+function closePanel() {
+  panel.classList.remove('open');
+  backdrop.classList.remove('open');
+  panel.setAttribute('aria-hidden','true');
+}
+backdrop.addEventListener('click', closePanel);
+closeBtn.addEventListener('click', closePanel);
+
+document.querySelectorAll('.nav-card').forEach(btn => {
+  btn.addEventListener('click', () => openSection(btn.dataset.section));
+});
+
+/* delegate details toggle inside the panel */
+contentEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action="toggle"]');
+  if (!btn) return;
+  const card = btn.closest('.project');
+  if (!card) return;
+  const expanded = card.classList.toggle('expanded');
+  btn.textContent = expanded ? '[ − details ]' : '[ + details ]';
+});
+
+document.addEventListener('keydown', e => {
+  if (bootEl.isConnected && !bootEl.classList.contains('gone')) return;
+  if (e.key === 'Escape') closePanel();
+});
+
+runBoot();
+</script>
+</body>
+</html>
