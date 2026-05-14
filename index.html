@@ -646,9 +646,35 @@
     .nav-grid { gap: 28px 36px; }
     .nav-card .icon-box { width: 52px; height: 52px; }
   }
+
+  /* ============ CURSOR GLOW ============ */
+  #cursor-glow {
+    position: fixed;
+    top: 0; left: 0;
+    width: 360px;
+    height: 360px;
+    margin: -180px 0 0 -180px;
+    pointer-events: none;
+    z-index: 5000;
+    background: radial-gradient(
+      circle at center,
+      rgba(51, 255, 102, 0.09) 0%,
+      rgba(51, 255, 102, 0.04) 30%,
+      rgba(51, 255, 102, 0.01) 60%,
+      rgba(51, 255, 102, 0)    78%
+    );
+    mix-blend-mode: screen;
+    transform: translate3d(-1000px, -1000px, 0);
+    transition: opacity 0.35s ease;
+    opacity: 0;
+  }
+  #cursor-glow.live { opacity: 1; }
 </style>
 </head>
 <body>
+
+<!-- cursor glow -->
+<div id="cursor-glow" aria-hidden="true"></div>
 
 <!-- ============ BOOT ============ -->
 <div id="boot" class="crt-flicker">
@@ -1126,6 +1152,35 @@ document.addEventListener('keydown', e => {
 });
 
 runBoot();
+
+/* =====================================================
+   CURSOR GLOW (low-intensity, follows mouse)
+===================================================== */
+(function initCursorGlow(){
+  const glow = document.getElementById('cursor-glow');
+  if (!glow) return;
+  if (window.matchMedia('(pointer: coarse)').matches) return; // skip on touch
+
+  let mx = -1000, my = -1000;
+  let rmx = -1000, rmy = -1000;
+  let moved = false;
+
+  window.addEventListener('mousemove', (e) => {
+    mx = e.clientX;
+    my = e.clientY;
+    if (!moved) { moved = true; glow.classList.add('live'); }
+  }, { passive: true });
+  window.addEventListener('mouseleave', () => glow.classList.remove('live'));
+  window.addEventListener('mouseenter', () => { if (moved) glow.classList.add('live'); });
+
+  function tick() {
+    rmx += (mx - rmx) * 0.22;
+    rmy += (my - rmy) * 0.22;
+    glow.style.transform = `translate3d(${rmx}px, ${rmy}px, 0)`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
 </script>
 </body>
 </html>
