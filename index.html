@@ -274,6 +274,15 @@
   }
   .panel-body::-webkit-scrollbar { width: 6px; }
   .panel-body::-webkit-scrollbar-thumb { background: var(--green-darker); }
+  .panel-body .panel-title,
+  .panel-body #panel-content {
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .panel-body.swapping .panel-title,
+  .panel-body.swapping #panel-content {
+    opacity: 0;
+    transform: translateX(12px);
+  }
 
   .panel-title {
     color: var(--green);
@@ -981,19 +990,36 @@ const closeBtn = document.getElementById('panel-close');
 function openSection(key) {
   const s = sections[key];
   if (!s) return;
-  titleEl.textContent = s.title;
-  contentEl.innerHTML = `
-    <div class="panel-prompt">user@portfolio:~$ <span class="cmd">${s.cmd}</span></div>
-    ${s.body}
-  `;
-  panel.querySelector('.panel-body').scrollTop = 0;
-  panel.classList.add('open');
-  backdrop.classList.add('open');
-  document.body.classList.add('panel-active');
-  panel.setAttribute('aria-hidden','false');
-  document.querySelectorAll('.nav-card').forEach(b => {
-    b.classList.toggle('active', b.dataset.section === key);
-  });
+  const wasOpen = panel.classList.contains('open');
+  const body = panel.querySelector('.panel-body');
+
+  const apply = () => {
+    titleEl.textContent = s.title;
+    contentEl.innerHTML = `
+      <div class="panel-prompt">user@portfolio:~$ <span class="cmd">${s.cmd}</span></div>
+      ${s.body}
+    `;
+    body.scrollTop = 0;
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    document.body.classList.add('panel-active');
+    panel.setAttribute('aria-hidden','false');
+    document.querySelectorAll('.nav-card').forEach(b => {
+      b.classList.toggle('active', b.dataset.section === key);
+    });
+  };
+
+  if (wasOpen) {
+    // fade out current, swap, fade in
+    body.classList.add('swapping');
+    setTimeout(() => {
+      apply();
+      // next frame, remove swapping to fade back in
+      requestAnimationFrame(() => requestAnimationFrame(() => body.classList.remove('swapping')));
+    }, 180);
+  } else {
+    apply();
+  }
 }
 function closePanel() {
   panel.classList.remove('open');
