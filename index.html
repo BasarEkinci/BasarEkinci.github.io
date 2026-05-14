@@ -73,6 +73,23 @@
     z-index: 1000;
     padding: 32px clamp(16px, 4vw, 64px);
     overflow: hidden;
+    transform-origin: center;
+    opacity: 1;
+    transition: opacity 1s ease;
+  }
+  #boot .head,
+  #boot-log,
+  #boot-loader {
+    transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  #boot-log     { transition-delay: 0.05s; }
+  #boot-loader  { transition-delay: 0.1s; }
+
+  #boot.gone .head,
+  #boot.gone #boot-log,
+  #boot.gone #boot-loader {
+    opacity: 0;
+    transform: translateY(-8px);
   }
   #boot .head {
     color: var(--gray);
@@ -113,7 +130,11 @@
   }
   @keyframes blink { 50% { opacity: 0; } }
 
-  #boot.gone { opacity: 0; transition: opacity 0.7s ease; pointer-events: none; }
+  #boot.gone {
+    opacity: 0;
+    pointer-events: none;
+    animation: none;
+  }
 
   /* ============ MAIN ============ */
   main {
@@ -295,8 +316,8 @@
   .panel-body #panel-content {
     transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
-  .panel-body .panel-rule { transition-delay: 0.05s; }
-  .panel-body #panel-content { transition-delay: 0.1s; }
+  .panel-body .panel-rule    { transition-delay: 0.15s; }
+  .panel-body #panel-content { transition-delay: 0.3s; }
 
   .panel-body.swap-out .panel-title,
   .panel-body.swap-out .panel-rule,
@@ -312,6 +333,15 @@
     opacity: 0;
     transform: translateY(20px);
     transition: none;
+  }
+  /* closing: everything animates together (no stagger) */
+  .panel-body.closing .panel-title,
+  .panel-body.closing .panel-rule,
+  .panel-body.closing #panel-content {
+    opacity: 0;
+    transform: translateY(20px);
+    transition-duration: 0.28s;
+    transition-delay: 0s;
   }
 
   .panel-title {
@@ -767,10 +797,11 @@ async function runBoot() {
   await sleep(180);
   logEl.innerHTML += '[<span class="ok">OK</span>] ready.\n';
   await sleep(520);
+  bootEl.classList.remove('crt-flicker');
   bootEl.classList.add('gone');
-  // small overlap so boot fade and main rise blend instead of cutting
-  setTimeout(() => mainEl.classList.add('show'), 120);
-  setTimeout(() => { bootEl.remove(); }, 900);
+  // fade lasts ~1s; bring main in midway through so the screens cross-fade
+  setTimeout(() => mainEl.classList.add('show'), 350);
+  setTimeout(() => { bootEl.remove(); }, 1200);
 }
 
 /* =====================================================
@@ -1061,11 +1092,16 @@ function openSection(key) {
   }
 }
 function closePanel() {
-  panel.classList.remove('open');
-  backdrop.classList.remove('open');
-  document.body.classList.remove('panel-active');
-  panel.setAttribute('aria-hidden','true');
-  document.querySelectorAll('.nav-card').forEach(b => b.classList.remove('active'));
+  const body = panel.querySelector('.panel-body');
+  body.classList.add('closing');
+  setTimeout(() => {
+    panel.classList.remove('open');
+    backdrop.classList.remove('open');
+    document.body.classList.remove('panel-active');
+    panel.setAttribute('aria-hidden','true');
+    document.querySelectorAll('.nav-card').forEach(b => b.classList.remove('active'));
+    setTimeout(() => body.classList.remove('closing'), 380);
+  }, 240);
 }
 backdrop.addEventListener('click', closePanel);
 closeBtn.addEventListener('click', closePanel);
