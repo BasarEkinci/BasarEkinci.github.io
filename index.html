@@ -647,6 +647,18 @@
     .nav-card .icon-box { width: 52px; height: 52px; }
   }
 
+  /* ============ BINARY BG (mouse-revealed) ============ */
+  #binary-bg {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    /* extra global dimmer so it never competes with text */
+    opacity: 0.85;
+  }
+
   /* ============ CURSOR GLOW ============ */
   #cursor-glow {
     position: fixed;
@@ -672,6 +684,9 @@
 </style>
 </head>
 <body>
+
+<!-- binary background (revealed by cursor) -->
+<canvas id="binary-bg" aria-hidden="true"></canvas>
 
 <!-- cursor glow -->
 <div id="cursor-glow" aria-hidden="true"></div>
@@ -1154,6 +1169,115 @@ document.addEventListener('keydown', e => {
 runBoot();
 
 /* =====================================================
+   BINARY BACKGROUND (invisible, revealed by mouse)
+===================================================== */
+(function initBinaryBg(){
+  const canvas = document.getElementById('binary-bg');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const CELL_W = 12;   // horizontal spacing between digits
+  const CELL_H = 16;   // vertical spacing between digits
+  const FONT_PX = 11;  // digit size
+  const REVEAL_RADIUS = 130;     // how far the cursor reveals
+  const MAX_ALPHA = 0.18;        // peak digit brightness (very dim)
+  const FADE_ALPHA = 0.14;       // per-frame fade toward bg
+  const BG_RGB = '5,8,7';        // matches --bg
+  const FG_RGB = '51,255,102';   // matches --green
+
+  let cells = [];
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let mx = -9999, my = -9999;
+  let active = false;
+  let lastMove = 0;
+
+  function setup() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.width  = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const cols = Math.ceil(w / CELL_W) + 1;
+    const rows = Math.ceil(h / CELL_H) + 1;
+    cells = new Array(cols * rows);
+    let i = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        cells[i++] = {
+          x: c * CELL_W + CELL_W / 2,
+          y: r * CELL_H + CELL_H / 2,
+          d: Math.random() < 0.5 ? '0' : '1'
+        };
+      }
+    }
+    ctx.font = `${FONT_PX}px "JetBrains Mono", ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // clear to bg
+    ctx.fillStyle = `rgb(${BG_RGB})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  setup();
+  let resizeTO;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTO);
+    resizeTO = setTimeout(setup, 120);
+  });
+
+  // skip cursor reveal on touch (no hover) — keep canvas dormant
+  const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+  if (!isTouch) {
+    window.addEventListener('mousemove', (e) => {
+      mx = e.clientX; my = e.clientY;
+      active = true;
+      lastMove = performance.now();
+    }, { passive: true });
+    window.addEventListener('mouseleave', () => { active = false; });
+    window.addEventListener('mouseenter', () => { active = true; });
+  }
+
+  const R2 = REVEAL_RADIUS * REVEAL_RADIUS;
+
+  function frame() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // hard clear — no trail, only the live cursor area shows digits
+    ctx.clearRect(0, 0, w, h);
+
+    if (active && !isTouch) {
+      // narrow the loop to cells near the cursor for perf
+      const pad = REVEAL_RADIUS + CELL_W;
+      const xMin = mx - pad, xMax = mx + pad;
+      const yMin = my - pad, yMax = my + pad;
+      for (let i = 0, n = cells.length; i < n; i++) {
+        const c = cells[i];
+        if (c.x < xMin || c.x > xMax || c.y < yMin || c.y > yMax) continue;
+        const dx = c.x - mx;
+        const dy = c.y - my;
+        const d2 = dx*dx + dy*dy;
+        if (d2 >= R2) continue;
+        const t = 1 - Math.sqrt(d2) / REVEAL_RADIUS;
+        // ease out so the edge fades soft
+        const a = MAX_ALPHA * t * t;
+        if (a < 0.005) continue;
+        ctx.fillStyle = `rgba(${FG_RGB},${a})`;
+        ctx.fillText(c.d, c.x, c.y);
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* =====================================================
    CURSOR GLOW (low-intensity, follows mouse)
 ===================================================== */
 (function initCursorGlow(){
@@ -1174,8 +1298,8 @@ runBoot();
   window.addEventListener('mouseenter', () => { if (moved) glow.classList.add('live'); });
 
   function tick() {
-    rmx += (mx - rmx) * 0.22;
-    rmy += (my - rmy) * 0.22;
+    rmx = mx;
+    rmy = my;
     glow.style.transform = `translate3d(${rmx}px, ${rmy}px, 0)`;
     requestAnimationFrame(tick);
   }
