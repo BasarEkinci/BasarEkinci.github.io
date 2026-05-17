@@ -1080,14 +1080,7 @@ function buildExperience() {
       <div class="xp-body">${x.body}</div>
     </div>
   `).join('');
-  return `
-    <div class="cv-row">
-      <a class="cv-btn" href="cv.pdf" target="_blank" rel="noopener" download>
-        <span class="arr">$</span> download cv.pdf <span class="arr">↓</span>
-      </a>
-    </div>
-    <div class="xp-list">${rows}</div>
-  `;
+  return `<div class="xp-list">${rows}</div>`;
 }
 
 function buildAbout() {
